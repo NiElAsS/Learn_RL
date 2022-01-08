@@ -5,8 +5,8 @@ In this project, I gonna implement the classic and popular reinforcement learnin
 By doing this, I hope to deepen my understanding of the algorithms.
 
 ## Structure
-- demo/tabular 
+- **demo/tabular**
   Cover the basic tabular methods from *Reinforcement Learning: An Introduction*.
 
-- demo/approximation
+- **demo/approximation**
   Cover the approximation methods with deep neural network.
