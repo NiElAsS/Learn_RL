@@ -9,10 +9,10 @@ class DQNnet(nn.Module):
     """The Deep Network for training Deep Q-Network"""
 
     def __init__(self, input_dim, output_dim):
-        """Initialize the network
+        """Initialize the network 
 
-        :input_dim: TODO
-        :output_dim: TODO
+        :input_dim: The dim of the states
+        :output_dim: The dim of the actions
 
         """
         nn.Module.__init__(self)

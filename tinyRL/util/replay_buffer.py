@@ -38,7 +38,7 @@ class ReplayBuffer():
     def save(self, state: np.ndarray, action: np.ndarray, next_state: np.ndarray, reward: float, done: bool):
         """Saving the data(samples) into the buffer"""
         self._state_buffer[self._ptr] = state
-        self._next_state_buffer[self._ptr] = state
+        self._next_state_buffer[self._ptr] = next_state
         self._actions_buffer[self._ptr] = action
         self._rewards_buffer[self._ptr] = reward
         self._done_buffer[self._ptr] = done
