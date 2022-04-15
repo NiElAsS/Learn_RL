@@ -24,7 +24,7 @@ class ActionNormalizer(gym.ActionWrapper):
         action = np.clip(action, low, high)
         return action
 
-    def normAction(self, action: np.ndarray):
+    def reverse_action(self, action: np.ndarray):
         """Rescale the action [low, high] to [-1, 1]"""
         low = self.action_space.low
         high = self.action_space.high

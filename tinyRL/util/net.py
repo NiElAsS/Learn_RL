@@ -56,7 +56,7 @@ class Actor(nn.Module):
             nn.Linear(32, output_dim),
         )
 
-    def forword(self, state: torch.Tensor):
+    def forward(self, state: torch.Tensor):
         """forward calculation"""
         x = F.relu(self._linear_layer(state))
         return x.tanh()
@@ -86,7 +86,7 @@ class Critic(nn.Module):
             nn.Linear(32, 1),
         )
 
-    def forword(self, state: torch.Tensor, action: torch.Tensor):
+    def forward(self, state: torch.Tensor, action: torch.Tensor):
         """forward calculation"""
         x = torch.cat((state, action), dim=-1)
         x = F.relu(self._linear_layer(x))
