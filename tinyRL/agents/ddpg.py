@@ -20,8 +20,8 @@ class DDPGagent(object):
                  ou_noise_theta: float,
                  ou_noise_sigma: float,
                  gamma: float = 0.99,
-                 tau: float = 5e-3,
-                 init_rand_steps: int = 10000):
+                 tau: float = 5e-3
+                 ):
         """Init the paras for agent
 
         :env: The Gym environment
@@ -31,7 +31,6 @@ class DDPGagent(object):
         :ou_noise_sigma: Parameter for OUNoise
         :gamma: Discount factor
         :tau: Parameter for delayed update of parameters of target net
-        :init_rand_steps: TODO 
 
         """
         self._env = env
@@ -41,7 +40,6 @@ class DDPGagent(object):
         self._ou_noise_sigma = ou_noise_sigma
         self._gamma = gamma
         self._tau = tau
-        self._init_rand_steps = init_rand_steps
         self._step_count = 0
 
         self._observation_dim = env.observation_space.shape[0]
@@ -94,21 +92,14 @@ class DDPGagent(object):
         :state: state
         :returns: Batch of actions given states
 
-        Note for init_rand_steps: without initially select
-        random action, the action will be clipped value at first,
-        and nothing will be learnt
-
         """
 
-        if(self._step_count < self._init_rand_steps):
-            action = self._env.action_space.sample()
-        else:
-            action = self._actor(
-                torch.FloatTensor(state).to(self._device)
-            ).detach().cpu().numpy()
+        action = self._actor(
+            torch.FloatTensor(state).to(self._device)
+        ).detach().cpu().numpy()
 
-            noise = self._noise.sample()
-            action = np.clip(action + noise, -1.0, 1.0)
+        noise = self._noise.sample()
+        action = np.clip(action + noise, -1.0, 1.0)
 
         # save the transition info
         self._transition = [state, action]
@@ -214,11 +205,7 @@ class DDPGagent(object):
                 self._scores.append(score)
                 score = 0
 
-            if(
-                    len(self._buffer) >= self._batch_size
-                    and
-                    self._step_count > self._init_rand_steps
-            ):
+            if(len(self._buffer) >= self._batch_size):
                 critic_loss, actor_loss = self.update()
                 self._critic_losses.append(critic_loss)
                 self._actor_losses.append(actor_loss)
@@ -241,9 +228,9 @@ if __name__ == '__main__':
     env = gym.make("Pendulum-v1")
     env = ActionNormalizer(env)
 
-    n_step = 30000
+    n_step = 50000
     buffer_size = 100000
-    batch_size = 128
+    batch_size = 256
     # ou_noise_theta = 0.15
     # ou_noise_sigma = 0.2
     ou_noise_theta = 1.0
