@@ -49,16 +49,16 @@ class Actor(nn.Module):
         self._output_dim = output_dim
 
         self._linear_layer = nn.Sequential(
-            nn.Linear(input_dim, 64),
+            nn.Linear(input_dim, 128),
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(32, output_dim),
+            nn.Linear(64, output_dim),
         )
 
     def forward(self, state: torch.Tensor):
         """forward calculation"""
-        x = F.relu(self._linear_layer(state))
+        x = self._linear_layer(state)
         return x.tanh()
 
 
@@ -79,15 +79,15 @@ class Critic(nn.Module):
         self._action_dim = action_dim
 
         self._linear_layer = nn.Sequential(
-            nn.Linear(self._state_dim + self._action_dim, 64),
+            nn.Linear(self._state_dim + self._action_dim, 128),
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(128,128),
             nn.ReLU(),
-            nn.Linear(32, 1),
+            nn.Linear(128 , 1),
         )
 
     def forward(self, state: torch.Tensor, action: torch.Tensor):
         """forward calculation"""
         x = torch.cat((state, action), dim=-1)
-        x = F.relu(self._linear_layer(x))
+        x = self._linear_layer(x)
         return x

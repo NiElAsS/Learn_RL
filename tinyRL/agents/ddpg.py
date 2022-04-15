@@ -31,7 +31,7 @@ class DDPGagent(object):
         :ou_noise_sigma: Parameter for OUNoise
         :gamma: Discount factor
         :tau: Parameter for delayed update of parameters of target net
-        :init_rand_steps: ?
+        :init_rand_steps: TODO 
 
         """
         self._env = env
@@ -42,6 +42,7 @@ class DDPGagent(object):
         self._gamma = gamma
         self._tau = tau
         self._init_rand_steps = init_rand_steps
+        self._step_count = 0
 
         self._observation_dim = env.observation_space.shape[0]
         self._action_dim = env.action_space.shape[0]
@@ -64,17 +65,20 @@ class DDPGagent(object):
 
         # (input, output)
         # pi(a|s)
-        self._actor = Actor(self._observation_dim, self._action_dim).to(self._device)
+        self._actor = Actor(self._observation_dim,
+                            self._action_dim).to(self._device)
         self._actor_target = deepcopy(self._actor).to(self._device)
 
         # (state dim, action dim)
         # Q(s,a)
-        self._critic = Critic(self._observation_dim, self._action_dim).to(self._device)
-        self._critic_target = deepcopy(self._critic).to(self._device).to(self._device)
+        self._critic = Critic(self._observation_dim,
+                              self._action_dim).to(self._device)
+        self._critic_target = deepcopy(self._critic).to(
+            self._device).to(self._device)
 
         # optimizer
-        self._actor_opt = optim.Adam(self._actor.parameters())
-        self._critic_opt = optim.Adam(self._critic.parameters())
+        self._actor_opt = optim.Adam(self._actor.parameters(), lr=1e-4)
+        self._critic_opt = optim.Adam(self._critic.parameters(), lr=1e-3)
 
         # store transition
         self._transition = list()
@@ -90,13 +94,21 @@ class DDPGagent(object):
         :state: state
         :returns: Batch of actions given states
 
-        """
-        action = self._actor(
-            torch.FloatTensor(state).to(self._device)
-        ).detach().cpu().numpy()
+        Note for init_rand_steps: without initially select
+        random action, the action will be clipped value at first,
+        and nothing will be learnt
 
-        noise = self._noise.sample()
-        action = np.clip(action + noise, 1.0, -1.0)
+        """
+
+        if(self._step_count < self._init_rand_steps):
+            action = self._env.action_space.sample()
+        else:
+            action = self._actor(
+                torch.FloatTensor(state).to(self._device)
+            ).detach().cpu().numpy()
+
+            noise = self._noise.sample()
+            action = np.clip(action + noise, -1.0, 1.0)
 
         # save the transition info
         self._transition = [state, action]
@@ -139,9 +151,9 @@ class DDPGagent(object):
         next_states = torch.FloatTensor(
             samples['next_states']).to(self._device)
         actions = torch.FloatTensor(
-            samples['actions ']).reshape(-1, 1).to(self._device)
+            samples['actions']).reshape(-1, 1).to(self._device)
         rewards = torch.FloatTensor(
-            samples['rewards ']).reshape(-1, 1).to(self._device)
+            samples['rewards']).reshape(-1, 1).to(self._device)
         dones = torch.FloatTensor(
             samples['done']).reshape(-1, 1).to(self._device)
 
@@ -192,29 +204,34 @@ class DDPGagent(object):
         for i in range(1, n_step + 1):
 
             action = self.selectAction(state)
-            next_state, reward, done= self.step(action)
+            next_state, reward, done = self.step(action)
             state = next_state
             score += reward
+            self._step_count += 1
 
             if done:
                 state = self._env.reset()
                 self._scores.append(score)
                 score = 0
 
-            if(len(self._buffer) >= self._buffer_size):
+            if(
+                    len(self._buffer) >= self._batch_size
+                    and
+                    self._step_count > self._init_rand_steps
+            ):
                 critic_loss, actor_loss = self.update()
                 self._critic_losses.append(critic_loss)
-                self._actor_losses.append(critic_loss)
+                self._actor_losses.append(actor_loss)
 
             if(i % 1000 == 0):
-                print(f"Current step: {i} Mean: {np.array(self._scores).mean()}")
+                print(
+                    f"Current step: {i} Last 5000 Mean: {np.array(self._scores[-5000:]).mean()}")
 
         self._env.close()
 
     def plot(self):
         """plot the result(scores, critic losses and actor losses)"""
 
-        plt.subplot(131)
         plt.title("Scores")
         plt.plot(self._scores)
         plt.show()
@@ -224,9 +241,11 @@ if __name__ == '__main__':
     env = gym.make("Pendulum-v1")
     env = ActionNormalizer(env)
 
-    n_step = 80000
+    n_step = 30000
     buffer_size = 100000
     batch_size = 128
+    # ou_noise_theta = 0.15
+    # ou_noise_sigma = 0.2
     ou_noise_theta = 1.0
     ou_noise_sigma = 0.1
 

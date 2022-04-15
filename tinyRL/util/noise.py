@@ -20,8 +20,8 @@ class OUNoise:
         sigma: float = 0.2,
     ):
         """Initialize parameters and noise process."""
+        self.state = np.float64(0.0)
         self.mu = mu * np.ones(size)
-        self.state = copy.copy(self.mu)
         self.theta = theta
         self.sigma = sigma
         self.reset()
