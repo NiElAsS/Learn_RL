@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.distributions import Normal
 
 
 class DQNnet(nn.Module):
@@ -53,13 +54,66 @@ class ActorDet(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(64, output_dim),
+            nn.Linear(64, output_dim)
         )
 
     def forward(self, state: torch.Tensor):
         """forward calculation"""
         x = self._fully_conn_layer(state)
         return x.tanh()
+
+
+class ActorSto(nn.Module):
+
+    """stochastic actor NN for actor-critic algorithm"""
+
+    def __init__(self, input_dim: int, output_dim: int, max_std: float):
+        """Init the network, use Normal distribution
+
+        :input_dim: Input dimension(state dimension)
+        :output_dim: Output dimenstion
+        :max_std: Maximum value of standard deviation of Normal distribution
+
+        """
+        super().__init__()
+
+        self._input_dim = input_dim
+        self._output_dim = output_dim
+        self._max_std = max_std
+
+        self._fully_conn_layer = nn.Sequential(
+            nn.Linear(input_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU()
+        )
+
+        # compute the mu and std for Normal distribution
+        self._mu = nn.Linear(32, output_dim)
+        self._std = nn.Linear(32, output_dim)
+
+    def forward(self, state: torch.Tensor) -> tuple:
+        """Forward calculation
+
+        :arg1: TODO
+        :returns: TODO
+
+        """
+        x = self._fully_conn_layer(state)
+
+        # map action mean to (-1, 1)
+        mu = torch.tanh(self._mu(x))
+
+        # map action std to (0,max_std)
+        std = torch.relu(self._std(x)) * self._max_std
+
+        # build the distribution and sample the action
+        dist = Normal(mu, std)
+        action = dist.sample()
+
+        return action, dist
 
 
 class CriticQ(nn.Module):
@@ -83,7 +137,7 @@ class CriticQ(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(128, 1),
+            nn.Linear(128, 1)
         )
 
     def forward(self, state: torch.Tensor, action: torch.Tensor):
@@ -111,7 +165,7 @@ class CriticV(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(128, 1),
+            nn.Linear(128, 1)
         )
 
     def forward(self, state: torch.Tensor):
