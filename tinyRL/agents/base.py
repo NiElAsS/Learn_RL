@@ -3,6 +3,7 @@ from typing import Optional
 
 import numpy as np
 import torch
+import torch.optim as optim
 from tinyRL.util.net import Actor, Critic
 from tinyRL.util.replay_buffer import ReplayBuffer
 
@@ -57,9 +58,18 @@ class BaseAgent():
         self._critic = critic.to(self._device)
         self._critic_target = deepcopy(self._critic).to(self._device)
 
+        # optimizer
+        self._actor_optimizer = optim.Adam(
+            self._actor.parameters(),
+            lr=self._actor_learning_rate
+        )
+        self._critic_optimizer = optim.Adam(
+            self._critic.parameters(),
+            lr=self._critic_learning_rate
+        )
+
         # store tmp transitions
         self._transitions = list()
-
 
     def select_action(self, state: np.ndarray) -> np.ndarray:
         """select action with respect to state
@@ -130,3 +140,8 @@ class BaseAgent():
             target_param.data.copy_(
                 tau * param.data + (1 - tau) * target_param.data)
 
+
+    def train(self):
+        raise NotImplementedError
+    def update(self):
+        raise NotImplementedError
