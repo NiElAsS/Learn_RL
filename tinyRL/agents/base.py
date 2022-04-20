@@ -1,11 +1,8 @@
 from copy import deepcopy
-from typing import Optional
 
 import numpy as np
 import torch
 import torch.optim as optim
-from tinyRL.util.net import ActorDet, CriticQ
-from tinyRL.util.replay_buffer import ReplayBuffer
 
 
 class BaseAgent():
@@ -25,10 +22,10 @@ class BaseAgent():
     ):
         """Init the paras for agent
 
-        :env: A gym.Env
-        :actor: A NN as actor
-        :critic: A NN as critic
-        :replay_buffer: A replay buffer for saving and sampling transition
+        :env: gym.Env
+        :actor: NN as actor
+        :critic: NN as critic
+        :replay_buffer: The replay buffer for saving and sampling transition
         :gamma: Discount factor
         :tau: Soft update factor
         :actor_learning_rate: Learning rate for actor
@@ -140,8 +137,8 @@ class BaseAgent():
             target_param.data.copy_(
                 tau * param.data + (1 - tau) * target_param.data)
 
-
     def train(self):
         raise NotImplementedError
+
     def update(self):
         raise NotImplementedError
