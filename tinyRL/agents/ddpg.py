@@ -6,7 +6,7 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from tinyRL.util.noise import OUNoise
-from tinyRL.util.net import Critic, Actor
+from tinyRL.util.net import CriticQ, ActorDet
 from tinyRL.util import ReplayBuffer, ActionNormalizer
 
 
@@ -63,13 +63,13 @@ class DDPGagent(object):
 
         # (input, output)
         # pi(a|s)
-        self._actor = Actor(self._observation_dim,
+        self._actor = ActorDet(self._observation_dim,
                             self._action_dim).to(self._device)
         self._actor_target = deepcopy(self._actor).to(self._device)
 
         # (state dim, action dim)
         # Q(s,a)
-        self._critic = Critic(self._observation_dim,
+        self._critic = CriticQ(self._observation_dim,
                               self._action_dim).to(self._device)
         self._critic_target = deepcopy(self._critic).to(
             self._device).to(self._device)

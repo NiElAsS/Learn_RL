@@ -4,7 +4,7 @@ from typing import Optional
 import numpy as np
 import torch
 import torch.optim as optim
-from tinyRL.util.net import Actor, Critic
+from tinyRL.util.net import ActorDet, CriticQ
 from tinyRL.util.replay_buffer import ReplayBuffer
 
 

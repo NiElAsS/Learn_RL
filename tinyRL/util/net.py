@@ -32,7 +32,7 @@ class DQNnet(nn.Module):
         return self._linear_layer(state)
 
 
-class Actor(nn.Module):
+class ActorDet(nn.Module):
 
     """Neural network for actor-critic algorithm"""
 
@@ -62,7 +62,7 @@ class Actor(nn.Module):
         return x.tanh()
 
 
-class Critic(nn.Module):
+class CriticQ(nn.Module):
 
     """Critic network(action-value) for actor-critic algorithm"""
 
