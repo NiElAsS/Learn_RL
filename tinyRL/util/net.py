@@ -19,7 +19,7 @@ class DQNnet(nn.Module):
 
         self._input_dim = input_dim
         self._output_dim = output_dim
-        self._linear_layer = nn.Sequential(
+        self._fully_conn_layer = nn.Sequential(
             nn.Linear(input_dim, 64),
             nn.ReLU(),
             nn.Linear(64, 32),
@@ -29,7 +29,7 @@ class DQNnet(nn.Module):
 
     def forward(self, state):
         """forward calculate"""
-        return self._linear_layer(state)
+        return self._fully_conn_layer(state)
 
 
 class ActorDet(nn.Module):
@@ -40,7 +40,7 @@ class ActorDet(nn.Module):
         """Initialize the network
 
         :input_dim: input dimension
-        :output_dim: output dimentsion
+        :output_dim: output dimension
 
         """
         super().__init__()
@@ -48,7 +48,7 @@ class ActorDet(nn.Module):
         self._input_dim = input_dim
         self._output_dim = output_dim
 
-        self._linear_layer = nn.Sequential(
+        self._fully_conn_layer = nn.Sequential(
             nn.Linear(input_dim, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
@@ -58,7 +58,7 @@ class ActorDet(nn.Module):
 
     def forward(self, state: torch.Tensor):
         """forward calculation"""
-        x = self._linear_layer(state)
+        x = self._fully_conn_layer(state)
         return x.tanh()
 
 
@@ -73,21 +73,47 @@ class CriticQ(nn.Module):
         :action_dim: action dimension
 
         """
-        nn.Module.__init__(self)
+        super().__init__()
 
         self._state_dim = state_dim
         self._action_dim = action_dim
 
-        self._linear_layer = nn.Sequential(
+        self._fully_conn_layer = nn.Sequential(
             nn.Linear(self._state_dim + self._action_dim, 128),
             nn.ReLU(),
-            nn.Linear(128,128),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(128 , 1),
+            nn.Linear(128, 1),
         )
 
     def forward(self, state: torch.Tensor, action: torch.Tensor):
         """forward calculation"""
         x = torch.cat((state, action), dim=-1)
-        x = self._linear_layer(x)
+        x = self._fully_conn_layer(x)
         return x
+
+
+class CriticV(nn.Module):
+
+    """state-value critic network for actor-critic algorithm"""
+
+    def __init__(self, input_dim: int):
+        """Init the network
+
+        :input_dim: input dimension of state
+
+        """
+        super().__init__()
+
+        self._input_dim = input_dim
+        self._fully_conn_layer = nn.Sequential(
+            nn.Linear(input_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
+        )
+
+    def forward(self, state: torch.Tensor):
+        """Forward calculation"""
+        return self._fully_conn_layer(state)
