@@ -1,11 +1,12 @@
 from collections import deque
+import torch
 
 
 def gae(
-        next_value: list,
-        rewards: list,
-        masks: list,
-        values: list,
+        last_next_value: torch.Tensor,
+        rewards: torch.Tensor,
+        masks: torch.Tensor,
+        values: torch.Tensor,
         gamma: float,
         lambd: float
 ) -> list:
@@ -15,7 +16,7 @@ def gae(
     :returns: TODO
 
     """
-    values = values + [next_value]
+    values = torch.cat((values, last_next_value))
     gae = 0
     res = deque()
 
