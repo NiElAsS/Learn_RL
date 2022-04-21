@@ -1,6 +1,102 @@
 import numpy as np
 
 
+class Buffer():
+
+    """This is the buffer for saving samples during training"""
+
+    def __init__(self, max_buffer_size: int, batch_size: int):
+        """Init the Buffer
+
+        :max_buffer_size: The maximum number of sample in the Buffer
+        :batch_size: The number of sample in a batch
+
+        """
+
+        self._max_buffer_size = max_buffer_size
+        self._batch_size = batch_size
+
+        # count the current number of samples
+        self._curr_size = 0
+
+        # data
+        self._state = []
+        self._action = []
+        self._reward = []
+        self._next_state = []
+        self._mask = []
+        self._value = []
+        self._log_prob = []
+
+    def __len__(self):
+        """return the current size of Buffer"""
+        return self._curr_size
+
+    def clear(self):
+        """clear all data list"""
+        self._curr_size = 0
+
+        self._state.clear()
+        self._action.clear()
+        self._reward.clear()
+        self._next_state.clear()
+        self._mask.clear()
+        self._value.clear()
+        self._log_prob.clear()
+
+    def sample_batch(self):
+        """sample a batch of data
+
+        :returns: a dict with (data_keyword, np.ndarray) pair
+
+        """
+        raise NotImplementedError
+
+    def save(self, arg1):
+        """Save the data into Buffer"""
+        raise NotImplementedError
+
+
+class BufferPPO(Buffer):
+
+    """The data Buffer for PPOagent"""
+
+    def __init__(self, max_buffer_size: int, batch_size: int):
+        """Init the Buffer
+
+        :max_buffer_size: The maximum number of sample in the Buffer
+        :batch_size: The number of sample in a batch
+
+        """
+        super().__init__(max_buffer_size, batch_size)
+
+    def save(
+            self,
+            state: np.ndarray,
+            action: np.ndarray,
+            reward: np.ndarray,
+            value: np.ndarray,
+            mask: np.ndarray,
+            log_prob: np.ndarray
+    ):
+        """save the data
+
+        :state: np.ndarray,
+        :action: np.ndarray,
+        :reward: np.ndarray,
+        :value: np.ndarray,
+        :mask: np.ndarray,
+        :log_prob: np.ndarray
+
+        """
+        self._state.append(state)
+        self._action.append(action)
+        self._reward.append(reward)
+        self._value.append(value)
+        self._mask.append(mask)
+        self._log_prob.append(log_prob)
+
+
 class ReplayBuffer():
 
     """This is a normal replay buffer for training DQN.
@@ -63,4 +159,3 @@ class ReplayBuffer():
     def __len__(self):
         """return the current size of buffer"""
         return self._curr_size
-
