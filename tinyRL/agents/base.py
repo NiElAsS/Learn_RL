@@ -14,7 +14,7 @@ class BaseAgent():
             env,
             actor,
             critic,
-            replay_buffer,
+            buffer,
             gamma: float = 0.99,
             tau: float = 1e-3,
             actor_learning_rate: float = 1e-4,
@@ -34,7 +34,7 @@ class BaseAgent():
         """
 
         self._env = env
-        self._replay_buffer = replay_buffer
+        self._buffer = buffer
         self._gamma = gamma
         self._tau = tau
         self._actor_learning_rate = actor_learning_rate
@@ -65,8 +65,14 @@ class BaseAgent():
             lr=self._critic_learning_rate
         )
 
+        # data recorder
+        self._scores = list()
+        self._actor_loss = list()
+        self._critic_loss = list()
+
         # store tmp transitions
         self._transitions = list()
+        self._curr_step = 0
 
     def select_action(self, state: np.ndarray) -> np.ndarray:
         """select action with respect to state
@@ -96,12 +102,12 @@ class BaseAgent():
 
         # save the transition info
         self._transition += [next_state, reward, done]
-        self._replay_buffer.save(*self._transition)
+        self._buffer.save(*self._transition)
 
         return next_state, reward, done
 
     def exploreEnv(self, max_step):
-        """explore the env, save the trajectory to replay buffer
+        """explore the env, save the trajectory to buffer
 
         :max_step: The maximum steps taking on env
 
@@ -109,11 +115,20 @@ class BaseAgent():
 
         done = False
         step = 0
+        score = 0
         state = self._env.reset()
+
         while step < max_step or not done:
             action = self.select_action(state)
-            _, _, done = self.step(action)
+            next_state, reward, done = self.step(action)
+            state = next_state
+
+            score += reward
             step += 1
+            self._curr_step += 1
+
+        # save the data
+        self._scores.append(score)
 
     @staticmethod
     def applyUpdate(optimizer: torch.optim.Optimizer, loss_func):
