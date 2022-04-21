@@ -72,7 +72,7 @@ class BaseAgent():
 
         # store tmp transitions
         self._transitions = list()
-        self._curr_step = 0
+        self._curr_step = 1
 
     def select_action(self, state: np.ndarray) -> np.ndarray:
         """select action with respect to state
@@ -118,7 +118,7 @@ class BaseAgent():
         score = 0
         state = self._env.reset()
 
-        while step < max_step or not done:
+        while step < max_step and not done:
             action = self.select_action(state)
             next_state, reward, done = self.step(action)
             state = next_state
@@ -126,6 +126,8 @@ class BaseAgent():
             score += reward
             step += 1
             self._curr_step += 1
+            if(self._curr_step % 1000 == 0):
+                print(f"Last 5000 explore Mean score:{np.array(self._scores[-5000:]).mean()}")
 
         # save the data
         self._scores.append(score)

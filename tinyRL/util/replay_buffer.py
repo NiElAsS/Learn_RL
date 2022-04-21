@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 class Buffer():
@@ -30,6 +31,10 @@ class Buffer():
         """return the current size of Buffer"""
         return self._curr_size
 
+    def batchSize(self):
+        """return the batch_size"""
+        return self._batch_size
+
     def clear(self):
         """clear all data list"""
         self._curr_size = 0
@@ -59,7 +64,7 @@ class BufferPPO(Buffer):
 
     """The data Buffer for PPOagent"""
 
-    def __init__(self, batch_size: int):
+    def __init__(self, batch_size: int = 128):
         """Init the Buffer
 
         :max_buffer_size: The maximum number of sample in the Buffer
@@ -72,27 +77,38 @@ class BufferPPO(Buffer):
             self,
             state: np.ndarray,
             action: np.ndarray,
-            reward: np.ndarray,
             value: np.ndarray,
-            mask: np.ndarray,
-            log_prob: np.ndarray
+            log_prob: np.ndarray,
+            next_state: np.ndarray,
+            reward: np.ndarray,
+            mask: np.ndarray
     ):
-        """save the data
-
-        :state: np.ndarray,
-        :action: np.ndarray,
-        :reward: np.ndarray,
-        :value: np.ndarray,
-        :mask: np.ndarray,
-        :log_prob: np.ndarray
-
-        """
+        """save the data"""
         self._state.append(state)
         self._action.append(action)
         self._reward.append(reward)
         self._value.append(value)
+        self._next_state.append(next_state)
         self._mask.append(mask)
         self._log_prob.append(log_prob)
+
+        self._curr_size += 1
+
+    def data(self):
+        """return the data of current buffer
+
+        :returns: a dictionary with samples
+
+        """
+        return dict(
+            states=torch.cat(self._state),
+            actions=torch.cat(self._action),
+            rewards=torch.cat(self._reward),
+            values=torch.cat(self._value),
+            next_states=torch.cat(self._next_state),
+            masks=torch.cat(self._mask),
+            log_prob=torch.cat(self._log_prob)
+        )
 
 
 class ReplayBuffer():
