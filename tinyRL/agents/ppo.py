@@ -22,7 +22,7 @@ class PPOagent(BaseAgent):
             critic,
             buffer,
             gamma: float = 0.99,
-            lambd: float = 0.01,
+            lambd: float = 0.02,
             actor_lr: float = 1e-4,
             critic_lr: float = 1e-3,
             epsilon: float = 0.25,
@@ -175,13 +175,14 @@ class PPOagent(BaseAgent):
 
     def train(self, n_step: int):
         """Train the agent
-
+)
         :arg1: TODO
         :returns: TODO
 
         """
         while self._curr_step <= n_step:
             self.exploreEnv(self._T_step)
+            print(f"Current step: {self._curr_step} Last 100 exploration Mean score:{np.array(self._scores[-100:]).mean()}")
 
             self.update()
 

@@ -113,12 +113,11 @@ class BaseAgent():
 
         """
 
-        done = False
         step = 0
         score = 0
         state = self._env.reset()
 
-        while step < max_step and not done:
+        while step < max_step:
             action = self.select_action(state)
             next_state, reward, done = self.step(action)
             state = next_state
@@ -126,11 +125,11 @@ class BaseAgent():
             score += reward
             step += 1
             self._curr_step += 1
-            if(self._curr_step % 1000 == 0):
-                print(f"Last 5000 explore Mean score:{np.array(self._scores[-5000:]).mean()}")
 
-        # save the data
-        self._scores.append(score)
+            if done:
+                state = self._env.reset()
+                self._scores.append(score)
+                score = 0
 
     @staticmethod
     def applyUpdate(optimizer: torch.optim.Optimizer, loss_func):
