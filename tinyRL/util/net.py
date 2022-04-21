@@ -67,7 +67,7 @@ class ActorSto(nn.Module):
 
     """stochastic actor NN for actor-critic algorithm"""
 
-    def __init__(self, input_dim: int, output_dim: int, max_std: float):
+    def __init__(self, input_dim: int, output_dim: int, max_std: float = 10):
         """Init the network, use Normal distribution
 
         :input_dim: Input dimension(state dimension)
@@ -95,19 +95,14 @@ class ActorSto(nn.Module):
         self._std = nn.Linear(32, output_dim)
 
     def forward(self, state: torch.Tensor) -> tuple:
-        """Forward calculation
-
-        :arg1: TODO
-        :returns: TODO
-
-        """
+        """Forward calculation"""
         x = self._fully_conn_layer(state)
 
         # map action mean to (-1, 1)
         mu = torch.tanh(self._mu(x))
 
         # map action std to (0,max_std)
-        std = torch.relu(self._std(x)) * self._max_std
+        std = torch.relu(self._std(x)) * self._max_std + 0.01
 
         # build the distribution and sample the action
         dist = Normal(mu, std)
