@@ -5,15 +5,13 @@ class Buffer():
 
     """This is the buffer for saving samples during training"""
 
-    def __init__(self, max_buffer_size: int, batch_size: int):
+    def __init__(self, batch_size: int):
         """Init the Buffer
 
-        :max_buffer_size: The maximum number of sample in the Buffer
         :batch_size: The number of sample in a batch
 
         """
 
-        self._max_buffer_size = max_buffer_size
         self._batch_size = batch_size
 
         # count the current number of samples
@@ -61,14 +59,14 @@ class BufferPPO(Buffer):
 
     """The data Buffer for PPOagent"""
 
-    def __init__(self, max_buffer_size: int, batch_size: int):
+    def __init__(self, batch_size: int):
         """Init the Buffer
 
         :max_buffer_size: The maximum number of sample in the Buffer
         :batch_size: The number of sample in a batch
 
         """
-        super().__init__(max_buffer_size, batch_size)
+        super().__init__(batch_size)
 
     def save(
             self,
