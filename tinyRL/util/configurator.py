@@ -11,11 +11,11 @@ class Configurator():
 
         """for training"""
         self.gamma = 0.99
-        self.actor_learning_rate = 1e-4
-        self.critic_learning_rate = 1e-3
         self.tau_soft_update = 1e-3
         self.rollout_step = 2**10
         self.update_repeat_times = 1
+        self.actor_learning_rate = 1e-4
+        self.critic_learning_rate = 1e-3
 
         """for epsilon-greedy"""
         self.epsilon_greedy_rate = 0.25

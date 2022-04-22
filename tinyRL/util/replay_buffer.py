@@ -246,7 +246,12 @@ class ReplayBufferDev():
         self._ptr = (self._ptr + 1) % self._max_buffer_size
 
     def sampleBatch(self) -> tuple:
-        """sample a batch of data with size self._batch_size"""
+        """sample a batch of data with size self._batch_size
+
+        :returns: Tuple[states, actions, next_states, rewards, masks]
+
+        """
+
         indices = torch.randint(
             self._curr_size - 1,
             size=(self._batch_size,),
