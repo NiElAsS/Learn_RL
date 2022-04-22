@@ -6,6 +6,7 @@ class Configurator():
     def __init__(self, env):
         """Init all parameters """
 
+        self.env = env
         self.state_dim = env.observation_space.shape[0]
         self.action_dim = env.action_space.shape[0]  # gym continuous env
 
