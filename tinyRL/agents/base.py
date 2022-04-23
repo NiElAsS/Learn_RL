@@ -1,7 +1,11 @@
 from copy import deepcopy
 
+from tinyRL.util.replay_buffer import ReplayBufferDev
+from tinyRL.util.net import ActorDet, CriticQ
+
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
 
 
@@ -11,59 +15,56 @@ class BaseAgent():
 
     def __init__(
             self,
-            env,
-            actor,
-            critic,
-            buffer,
-            gamma: float = 0.99,
-            tau: float = 1e-3,
-            actor_learning_rate: float = 1e-4,
-            critic_learning_rate: float = 1e-3
+            config
     ):
-        """Init the paras for agent
-
-        :env: gym.Env
-        :actor: NN as actor
-        :critic: NN as critic
-        :replay_buffer: The replay buffer for saving and sampling transition
-        :gamma: Discount factor
-        :tau: Soft update factor
-        :actor_learning_rate: Learning rate for actor
-        :critic_learning_rate: Learning rate for critic
-
-        """
-
-        self._env = env
-        self._buffer = buffer
-        self._gamma = gamma
-        self._tau = tau
-        self._actor_learning_rate = actor_learning_rate
-        self._critic_learning_rate = critic_learning_rate
+        """Init the agent"""
 
         # use gpu or cpu
         self._device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
 
-        # dimension info
-        self._observation_dim = env.observation_space.shape[0]
-        self._action_dim = env.action_space.shape[0]
+        # env
+        self._env = getattr(config, "env")
+        self._state_dim = getattr(config, "state_dim")
+        self._action_dim = getattr(config, "action_dim")
+
+        # buffer
+        self._max_buffer_size = getattr(config, "max_buffer_size")
+        self._batch_size = getattr(config, "buffer_batch_size")
+        self._buffer = ReplayBufferDev(
+            self._state_dim,
+            self._action_dim,
+            self._batch_size,
+            self._max_buffer_size
+        )
+
+        self._gamma = getattr(config, "gamma")
+        self._tau = getattr(config, "tau_soft_update")
+        self._actor_lr = getattr(config, "actor_learning_rate")
+        self._critic_lr = getattr(config, "critic_learning_rate")
 
         # init the network
-        self._actor = actor.to(self._device)
+        self._actor = ActorDet(
+            self._state_dim, self._action_dim).to(self._device)
         self._actor_target = deepcopy(self._actor).to(self._device)
-        self._critic = critic.to(self._device)
+
+        self._critic = CriticQ(
+            self._state_dim, self._action_dim).to(self._device)
         self._critic_target = deepcopy(self._critic).to(self._device)
 
         # optimizer
         self._actor_optimizer = optim.Adam(
             self._actor.parameters(),
-            lr=self._actor_learning_rate
+            lr=self._actor_lr
         )
         self._critic_optimizer = optim.Adam(
             self._critic.parameters(),
-            lr=self._critic_learning_rate
+            lr=self._critic_lr
         )
+
+        # loss func
+        self.loss_func = nn.SmoothL1Loss()
 
         # data recorder
         self._scores = list()
@@ -74,22 +75,19 @@ class BaseAgent():
         self._transitions = list()
         self._curr_step = 1
 
-    def select_action(self, state: np.ndarray) -> np.ndarray:
+    def select_action(self, state: np.ndarray) -> torch.Tensor:
         """select action with respect to state
 
-        :state: a numpy array of states
-        :returns: a numpy array of actions
+        :state: a numpy array of state
+        :returns: a torch.Tensor of action
 
         """
 
-        action = self._actor(
+        action_tensor = self._actor(
             torch.FloatTensor(state).to(self._device)
-        ).detach().cpu().numpy()
+        )
 
-        # save the transition info
-        self._transition = [state, action]
-
-        return action
+        return action_tensor
 
     def step(self, action: np.ndarray) -> tuple:
         """Take the given action and return the data
@@ -99,10 +97,6 @@ class BaseAgent():
 
         """
         next_state, reward, done, _ = self._env.step(action)
-
-        # save the transition info
-        self._transition += [next_state, reward, done]
-        self._buffer.save(*self._transition)
 
         return next_state, reward, done
 
@@ -115,23 +109,36 @@ class BaseAgent():
 
         step = 0
         score = 0
+        traj = []
+        done = False
         state = self._env.reset()
 
-        while step < max_step:
-            action = self.select_action(state)
-            next_state, reward, done = self.step(action)
-            state = next_state
+        while step < max_step or not done:
+            state_tensor = torch.as_tensor(
+                state, dtype=torch.float32
+            )
+            action_tensor = self._actor(
+                state_tensor.to(self._device)
+            ).detach().cpu()  # cpu
 
+            next_state, reward, done = self.step(action_tensor.numpy())
+            next_state_tensor = torch.as_tensor(
+                next_state, dtype=torch.float32
+            )
+
+
+            # update the vars
+            state = next_state
             score += reward
             step += 1
-            self._curr_step += 1
-
             if done:
                 state = self._env.reset()
                 self._scores.append(score)
                 score = 0
 
-    @staticmethod
+        self._curr_step += step
+
+    @ staticmethod
     def applyUpdate(optimizer: torch.optim.Optimizer, loss_func):
         """A help function to calculate the gradient and step.
 
@@ -143,7 +150,7 @@ class BaseAgent():
         loss_func.backward()
         optimizer.step()
 
-    @staticmethod
+    @ staticmethod
     def softUpdate(target_network, network, tau):
         """Applying soft(delayed) update for target network"""
 
