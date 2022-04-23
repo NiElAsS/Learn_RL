@@ -72,7 +72,7 @@ class BaseAgent():
         self._critic_loss = list()
 
         # store tmp transitions
-        self._transitions = list()
+        self._transition = list()
         self._curr_step = 1
 
     def select_action(self, state: np.ndarray) -> torch.Tensor:
@@ -122,10 +122,9 @@ class BaseAgent():
             ).detach().cpu()  # cpu
 
             next_state, reward, done = self.step(action_tensor.numpy())
-            next_state_tensor = torch.as_tensor(
-                next_state, dtype=torch.float32
-            )
 
+            transition = [state_tensor, action_tensor, next_state, reward, 1-done]
+            traj.append(self.transToTensor(transition))
 
             # update the vars
             state = next_state
@@ -136,7 +135,13 @@ class BaseAgent():
                 self._scores.append(score)
                 score = 0
 
+        self._buffer.saveTrajectory(traj)
         self._curr_step += step
+    
+    @staticmethod
+    def transToTensor(transition) -> tuple:
+        return tuple(torch.as_tensor(item).reshape(1,-1) for item in transition)
+        
 
     @ staticmethod
     def applyUpdate(optimizer: torch.optim.Optimizer, loss_func):
