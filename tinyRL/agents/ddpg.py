@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from tinyRL.util.noise import OUNoise
 from tinyRL.util.net import CriticQ, ActorDet
 from tinyRL.util import ReplayBuffer, ActionNormalizer
+from tinyRL.util.configurator import Configurator
 from tinyRL.agents.base import BaseAgent
 
 
@@ -65,18 +66,21 @@ class DDPG(BaseAgent):
         """Train the agent"""
 
         # init
-        state = self._env.reset()
         self._scores = []
         self._actor_losses = []
         self._critic_losses = []
-        score = 0
 
         while self._curr_step < self._max_train_step:
             self.exploreEnv()
             self.update()
             print(
-                "Current step: {self._curr_step} \
-                Last 100 exploration mean score: {torch.tensor(self._scores).mean()}"
+                    f"Current step: {self._curr_step} Last 100 exploration mean score: {torch.tensor(self._scores[-100:]).mean()}"
+            )
+            print(
+                    f"Last 100 actor update mean loss: {torch.tensor(self._actor_loss[-100:]).mean()}"
+            )
+            print(
+                    f"Last 100 critic update mean loss: {torch.tensor(self._critic_loss[-100:]).mean()}"
             )
 
         self._env.close()
@@ -300,22 +304,28 @@ if __name__ == '__main__':
     env = gym.make("Pendulum-v1")
     env = ActionNormalizer(env)
 
-    n_step = 50000
-    buffer_size = 100000
-    batch_size = 256
-    # ou_noise_theta = 0.15
-    # ou_noise_sigma = 0.2
-    ou_noise_theta = 1.0
-    ou_noise_sigma = 0.1
+    config = Configurator(env)
+    config.max_train_step = 200000
+    config.buffer_batch_size = 8
+    agent = DDPG(config)
+    agent.train()
 
-    agent = DDPGagent(
-        env,
-        buffer_size,
-        batch_size,
-        ou_noise_theta,
-        ou_noise_sigma
-    )
+    # n_step = 50000
+    # buffer_size = 100000
+    # batch_size = 256
+    # # ou_noise_theta = 0.15
+    # # ou_noise_sigma = 0.2
+    # ou_noise_theta = 1.0
+    # ou_noise_sigma = 0.1
 
-    agent.train(n_step)
+    # agent = DDPGagent(
+    # env,
+    # buffer_size,
+    # batch_size,
+    # ou_noise_theta,
+    # ou_noise_sigma
+    # )
 
-    agent.plot()
+    # agent.train(n_step)
+
+    # agent.plot()

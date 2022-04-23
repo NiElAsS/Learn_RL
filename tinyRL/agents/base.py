@@ -115,14 +115,14 @@ class BaseAgent():
         step = 0
         score = 0
         traj = []
-        done = False
         state = self._env.reset()
 
-        while step < self._rollout_step or not done:
+        while step < self._rollout_step:
             state_tensor = torch.as_tensor(
                 state, dtype=torch.float32
             )
-            action_tensor = self._actor(
+
+            action_tensor = self._actor.getNoiseAction(
                 state_tensor.to(self._device)
             ).detach().cpu()  # cpu
 
@@ -137,9 +137,10 @@ class BaseAgent():
             score += reward
             step += 1
             if done:
-                state = self._env.reset()
                 self._scores.append(score)
+
                 score = 0
+                state = self._env.reset()
 
         self._buffer.saveTrajectory(traj)
         self._curr_step += step

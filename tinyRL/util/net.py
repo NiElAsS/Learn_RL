@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 from torch.distributions import Normal
 
 
@@ -61,6 +59,12 @@ class ActorDet(nn.Module):
         """forward calculation"""
         x = self._fully_conn_layer(state)
         return x.tanh()
+
+    def getNoiseAction(self, state: torch.Tensor, std: float = 0.25):
+        """Get the action with Normal noise"""
+        x = self._fully_conn_layer(state).tanh()
+        x += Normal(0, std).sample().clamp(-0.5,0.5)
+        return x.clamp(-1.0,1.0)
 
 
 class ActorSto(nn.Module):

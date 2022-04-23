@@ -134,8 +134,8 @@ class ReplayBufferDev():
         # init the paras
         self._state_dim = state_dim
         self._action_dim = action_dim
-        self._batch_size = batch_size
-        self._max_buffer_size = max_buffer_size
+        self._batch_size = int(batch_size)
+        self._max_buffer_size = int(max_buffer_size)
 
         # init the gpu/cpu
         self._device = torch.device(
@@ -144,27 +144,27 @@ class ReplayBufferDev():
 
         # init the buffer
         self._state_buffer = torch.zeros(
-            (max_buffer_size, state_dim),
+            (self._max_buffer_size, self._state_dim),
             dtype=torch.float32,
             device=self._device
         )
         self._action_buffer = torch.zeros(
-            (max_buffer_size, action_dim),
+            (self._max_buffer_size, self._action_dim),
             dtype=torch.float32,
             device=self._device
         )
         self._next_state_buffer = torch.zeros(
-            (max_buffer_size, state_dim),
+            (self._max_buffer_size, self._state_dim),
             dtype=torch.float32,
             device=self._device
         )
         self._reward_buffer = torch.zeros(
-            (max_buffer_size, 1),
+            (self._max_buffer_size, 1),
             dtype=torch.float32,
             device=self._device
         )
         self._mask_buffer = torch.zeros(
-            (max_buffer_size, 1),
+            (self._max_buffer_size, 1),
             dtype=torch.float32,
             device=self._device
         )
@@ -212,11 +212,11 @@ class ReplayBufferDev():
 
             """2nd part"""
             require_size = require_size - self._max_buffer_size
-            self._state_buffer[0:require_size] = state[-require_size:0]
-            self._action_buffer[0:require_size] = action[-require_size:0]
-            self._next_state_buffer[0:require_size] = next_state[-require_size:0]
-            self._reward_buffer[0:require_size] = reward[-require_size:0]
-            self._mask_buffer[0:require_size] = mask[-require_size:0]
+            self._state_buffer[0:require_size] = state[-require_size:]
+            self._action_buffer[0:require_size] = action[-require_size:]
+            self._next_state_buffer[0:require_size] = next_state[-require_size:]
+            self._reward_buffer[0:require_size] = reward[-require_size:]
+            self._mask_buffer[0:require_size] = mask[-require_size:]
         else:
             """we have enough space"""
             self._state_buffer[self._ptr:require_size] = state
