@@ -78,19 +78,17 @@ class BaseAgent():
 
         # store tmp transitions
         self._transition = list()
-        self._curr_step = 1
+        self._curr_step = 0
 
-    def select_action(self, state: np.ndarray) -> torch.Tensor:
+    def selectAction(self, state: torch.Tensor) -> torch.Tensor:
         """select action with respect to state
 
-        :state: a numpy array of state
+        :state: a torch.Tensor of state
         :returns: a torch.Tensor of action
 
         """
 
-        action_tensor = self._actor(
-            torch.FloatTensor(state).to(self._device)
-        )
+        action_tensor = self._actor(state)
 
         return action_tensor
 
@@ -116,13 +114,14 @@ class BaseAgent():
         score = 0
         traj = []
         state = self._env.reset()
+        done = False
 
-        while step < self._rollout_step:
+        while step < self._rollout_step and not done:
             state_tensor = torch.as_tensor(
                 state, dtype=torch.float32
             )
 
-            action_tensor = self._actor.getNoiseAction(
+            action_tensor = self.selectAction(
                 state_tensor.to(self._device)
             ).detach().cpu()  # cpu
 

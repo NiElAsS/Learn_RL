@@ -8,13 +8,14 @@ class Configurator():
 
         self.env = env
         self.state_dim = env.observation_space.shape[0]
-        self.action_dim = env.action_space.shape[0]  # gym continuous env
+        # gym continuous env # TODO
+        self.action_dim = env.action_space.shape[0]
 
         """for training"""
         self.gamma = 0.99  # discount factor
-        self.max_train_step = 1e5  # maximum training step
+        self.max_train_step = 5e4  # maximum training step
         self.tau_soft_update = 1e-3  # target network soft update factor
-        self.rollout_step = 2e3  # maximum steps of each exploration
+        self.rollout_step = 200  # maximum steps of each exploration
         self.update_repeat_times = 1  # number of going through all samples
         self.actor_learning_rate = 1e-4  # actor_learning_rate
         self.critic_learning_rate = 1e-3  # critic_learning_rate
@@ -31,7 +32,7 @@ class Configurator():
         self.ppo_clipped_eps = 0.25
 
         """for replay buffer"""
-        self.buffer_batch_size = 2**10
+        self.buffer_batch_size = 128
         self.max_buffer_size = 1e5
 
         """for devices"""
