@@ -253,7 +253,7 @@ class ReplayBufferDev():
         """
 
         indices = torch.randint(
-            self._curr_size - 1,
+            self._curr_size,
             size=(self._batch_size,),
             device=self._device
         )

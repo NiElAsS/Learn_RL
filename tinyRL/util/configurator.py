@@ -11,12 +11,13 @@ class Configurator():
         self.action_dim = env.action_space.shape[0]  # gym continuous env
 
         """for training"""
-        self.gamma = 0.99
-        self.tau_soft_update = 1e-3
-        self.rollout_step = 2**10
-        self.update_repeat_times = 1
-        self.actor_learning_rate = 1e-4
-        self.critic_learning_rate = 1e-3
+        self.gamma = 0.99  # discount factor
+        self.max_train_step = 1e5  # maximum training step
+        self.tau_soft_update = 1e-3  # target network soft update factor
+        self.rollout_step = 2e3  # maximum steps of each exploration
+        self.update_repeat_times = 1  # number of going through all samples
+        self.actor_learning_rate = 1e-4  # actor_learning_rate
+        self.critic_learning_rate = 1e-3  # critic_learning_rate
 
         """for epsilon-greedy"""
         self.epsilon_greedy_rate = 0.25
@@ -30,7 +31,7 @@ class Configurator():
         self.ppo_clipped_eps = 0.25
 
         """for replay buffer"""
-        self.buffer_batch_size = 256
+        self.buffer_batch_size = 2**10
         self.max_buffer_size = 1e5
 
         """for devices"""

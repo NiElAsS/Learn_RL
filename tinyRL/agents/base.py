@@ -44,6 +44,11 @@ class BaseAgent():
         self._actor_lr = getattr(config, "actor_learning_rate")
         self._critic_lr = getattr(config, "critic_learning_rate")
 
+        # training
+        self._max_train_step = getattr(config, "max_train_step")
+        self._rollout_step = getattr(config, "rollout_step")
+        self._update_repeat_times = getattr(config, "update_repeat_times")
+
         # init the network
         self._actor = ActorDet(
             self._state_dim, self._action_dim).to(self._device)
@@ -100,7 +105,7 @@ class BaseAgent():
 
         return next_state, reward, done
 
-    def exploreEnv(self, max_step):
+    def exploreEnv(self):
         """explore the env, save the trajectory to buffer
 
         :max_step: The maximum steps taking on env
@@ -113,7 +118,7 @@ class BaseAgent():
         done = False
         state = self._env.reset()
 
-        while step < max_step or not done:
+        while step < self._rollout_step or not done:
             state_tensor = torch.as_tensor(
                 state, dtype=torch.float32
             )
@@ -123,7 +128,8 @@ class BaseAgent():
 
             next_state, reward, done = self.step(action_tensor.numpy())
 
-            transition = [state_tensor, action_tensor, next_state, reward, 1-done]
+            transition = [state_tensor, action_tensor,
+                          next_state, reward, 1-done]
             traj.append(self.transToTensor(transition))
 
             # update the vars
@@ -137,13 +143,12 @@ class BaseAgent():
 
         self._buffer.saveTrajectory(traj)
         self._curr_step += step
-    
+
     @staticmethod
     def transToTensor(transition) -> tuple:
-        return tuple(torch.as_tensor(item).reshape(1,-1) for item in transition)
-        
+        return tuple(torch.as_tensor(item).reshape(1, -1) for item in transition)
 
-    @ staticmethod
+    @staticmethod
     def applyUpdate(optimizer: torch.optim.Optimizer, loss_func):
         """A help function to calculate the gradient and step.
 
