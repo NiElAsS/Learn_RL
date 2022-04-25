@@ -1,18 +1,11 @@
-from typing import Tuple
 import gym
-import numpy as np
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
-from copy import deepcopy
 
 from tinyRL.agents import BaseAgent
 from tinyRL.util.net import ActorSto, CriticV
 from tinyRL.util.norm import ActionNormalizer
 from tinyRL.util.configurator import Configurator
-
-from tinyRL.util.gae import gae
-from tinyRL.util.replay_buffer import BufferPPO
 
 
 class PPO(BaseAgent):
@@ -48,6 +41,9 @@ class PPO(BaseAgent):
         )
 
         self._clip_eps = getattr(config, "ppo_clip_eps", 0.25)
+        self._if_gae = getattr(config, "if_gae", True)
+        self._gae_lambda = getattr(config, "gae_lambda", 0.95)
+        self._ret_estimator = self.getReturnAndGAE if self._if_gae else self.getDiscountReturn
 
     def selectAction(self, state: torch.Tensor) -> tuple:
         """select action with respect to state
@@ -69,10 +65,11 @@ class PPO(BaseAgent):
         ]
         self._buffer = [state, action, reward, mask, value, log_prob]
 
-    def getReturn(self) -> torch.Tensor:
-        """compute the return for each sample"""
+    def getDiscountReturn(self) -> tuple:
+        """compute the return advantages for each sample"""
         reward = self._buffer[2]
         mask = self._buffer[3]
+        value = self._buffer[4]
         n_sample = reward.shape[0]  # type:ignore
         ret = torch.zeros(
             (n_sample, 1),
@@ -84,7 +81,34 @@ class PPO(BaseAgent):
             ret[i] = reward[i] + mask[i] * tmp * self._gamma
             tmp = ret[i]
 
-        return ret
+        return ret, ret-value
+
+    def getReturnAndGAE(self) -> tuple:
+        """compute the returns and generalized advantage estimator(GAE)"""
+        reward = self._buffer[2]
+        mask = self._buffer[3]
+        value = self._buffer[4]
+        n_sample = reward.shape[0]  # type:ignore
+        ret = torch.zeros(
+            (n_sample, 1),
+            dtype=torch.float32,
+            device=self._device
+        )
+        adv = torch.zeros(
+            (n_sample, 1),
+            dtype=torch.float32,
+            device=self._device
+        )
+        tmp_ret = 0
+        tmp_adv = 0
+        for i in reversed(range(0, n_sample)):
+            ret[i] = reward[i] + mask[i] * tmp_ret * self._gamma
+            tmp_ret = ret[i]
+
+            adv[i] = reward[i] + mask[i] * tmp_adv * self._gamma - value[i]
+            tmp_adv = value[i] + adv[i] * self._gae_lambda
+
+        return ret, adv
 
     def exploreEnv(self):
         """explore the env, save the trajectory to buffer"""
@@ -144,11 +168,8 @@ class PPO(BaseAgent):
             value = self._buffer[4]
             log_prob = self._buffer[5]
 
-            # get returns
-            ret = self.getReturn()
-
-            # get advantages
-            adv = ret - value
+            # get returns and advantages
+            ret, adv = self._ret_estimator()
             # adv = (adv - adv.mean()) / (adv.std() + 1e-5)
 
         n_sample = value.shape[0]  # type:ignore
@@ -187,7 +208,7 @@ class PPO(BaseAgent):
             # compute actor_loss
             actor_loss = (
                 torch.min(surr, clip_surr).mean()
-                - entropy * self._entropy_weight
+                + entropy * self._entropy_weight
             )
 
             # compute critic_loss
@@ -228,23 +249,10 @@ if __name__ == '__main__':
     config.max_train_step = 100000
     config.rollout_step = 2000
     config.update_repeat_times = 64
-    config.buffer_batch_size = 256
+    config.buffer_batch_size = 128
     config.gamma = 0.9
+    config.gae_lambda = 0.8
+    config.if_gae = True
+
     agent = PPO(config)
     agent.train()
-
-    # act_dim = env.action_space.shape[0]
-    # obs_dim = env.observation_space.shape[0]
-    # actor = ActorSto(obs_dim, act_dim)
-    # critic = CriticV(obs_dim)
-    # buffer = BufferPPO()
-    # agent = PPOagent(
-    # env,
-    # actor,
-    # critic,
-    # buffer
-    # )
-
-    # n_step = 100000
-
-    # agent.train(n_step)
