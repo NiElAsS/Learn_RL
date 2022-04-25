@@ -3,188 +3,219 @@ import gym
 import numpy as np
 import torch
 import torch.nn.functional as F
+import torch.optim as optim
+from copy import deepcopy
 
 from tinyRL.agents import BaseAgent
 from tinyRL.util.net import ActorSto, CriticV
 from tinyRL.util.norm import ActionNormalizer
+from tinyRL.util.configurator import Configurator
+
 from tinyRL.util.gae import gae
 from tinyRL.util.replay_buffer import BufferPPO
 
 
-class PPOagent(BaseAgent):
+class PPO(BaseAgent):
 
-    """Agent of PPO algorithm"""
+    """Create a PPO agent for training and evaluation"""
 
-    def __init__(
-            self,
-            env,
-            actor,
-            critic,
-            buffer,
-            gamma: float = 0.99,
-            lambd: float = 0.02,
-            actor_lr: float = 1e-4,
-            critic_lr: float = 1e-3,
-            epsilon: float = 0.25,
-            T_step: int = 2**11,
-            epoch: int = 2**6,
-            entropy_weight: float = 1e-2
-    ):
-        """Init the PPOagent
+    def __init__(self, config):
+        """Init the agent
 
-        :env: gym.Env
-        :actor: NN as actor
-        :critic: NN as critic
-        :replay_buffer: The replay buffer for saving and sampling transition
-        :gamma: Discount factor
-        :tau: Soft update factor
-        :actor_learning_rate: Learning rate for actor
-        :critic_learning_rate: Learning rate for critic
-        :epsilon: clipping surrogate object
-        :T_step: the number of rollout
-        :epoch: the number of epoch updating the networks
-        :entropy_weight: ratio of weighting entropy into loss func
+        :config: Configurator for init all paras
 
         """
-        super().__init__(env, actor, critic, buffer, gamma, 0.1, actor_lr, critic_lr)
+        super().__init__(config)
 
-        self._lambda = lambd
-        self._epsilon = epsilon
-        self._T_step = T_step
-        self._epoch = epoch
-        self._entropy_weight = entropy_weight
+        # init buffer, use list()
+        self._buffer = list()
 
-    def select_action(self, state: np.ndarray) -> np.ndarray:
+        # init the net
+        self._actor = ActorSto(
+            self._state_dim, self._action_dim
+        ).to(self._device)
+
+        self._critic = CriticV(self._state_dim).to(self._device)
+
+        # init the optim
+        self._actor_optimizer = optim.Adam(
+            self._actor.parameters(),
+            lr=self._actor_lr
+        )
+        self._critic_optimizer = optim.Adam(
+            self._critic.parameters(),
+            lr=self._critic_lr
+        )
+
+        self._clip_eps = getattr(config, "ppo_clip_eps", 0.25)
+
+    def selectAction(self, state: torch.Tensor) -> tuple:
         """select action with respect to state
 
-        :state: a numpy array of states
-        :returns: a numpy array of actions
+        :state: a torch.Tensor of state
+        :returns: a Tuple[torch.Tensor, torch.Distribution]
 
         """
 
-        # reshape 1-dim state to 2-dim
-        # for torch.cat()
-        state_tensor = torch.FloatTensor(state).reshape(1, -1).to(self._device)
+        action_tensor, dist = self._actor(state)
 
-        action, dist = self._actor(state_tensor)
-        action_tensor = action.reshape(-1, 1)
-        value = self._critic(state_tensor).reshape(-1, 1)
-        log_prob = dist.log_prob(action).reshape(-1, 1)
+        return action_tensor, dist
 
-        # save the transition info
-        # [torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
-        # on self._device
-        self._transition = [state_tensor, action_tensor, value, log_prob]
+    def trajToBuffer(self, traj):
+        """save the trajectory into buffer(List)"""
+        self._buffer = self._buffer.clear()
+        self._buffer = list(map(list, zip(*traj)))
+        state, action, reward, mask, value, log_prob = [
+            torch.cat(i, dim=0).to(self._device) for i in self._buffer
+        ]
+        self._buffer = [state, action, reward, mask, value, log_prob]
 
-        return action.cpu().detach().numpy()
+    def getReturn(self) -> torch.Tensor:
+        """compute the return for each sample"""
+        reward = self._buffer[2]
+        mask = self._buffer[3]
+        n_sample = reward.shape[0]  # type:ignore
+        ret = torch.zeros(
+            (n_sample, 1),
+            dtype=torch.float32,
+            device=self._device
+        )
+        tmp = 0
+        for i in reversed(range(0, n_sample)):
+            ret[i] = reward[i] + mask[i] * tmp
+            tmp = ret[i]
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, np.float64, bool]:
-        """Take the given action and return the data
+        return ret
 
-        :action: the action need to be taken
-        :returns: tuple(next_state, reward, done)
+    def exploreEnv(self):
+        """explore the env, save the trajectory to buffer"""
 
-        """
-        next_state, reward, done, _ = self._env.step(action)
+        step = 0
+        score = 0
+        traj = []
+        state = self._env.reset()
+        done = False
 
-        # save the transition info
-        reward_tenosr = torch.FloatTensor(
-            reward).reshape(-1, 1).to(self._device)
-        mask_tensor = torch.tensor(1-done).reshape(-1, 1).to(self._device)
-        next_state_tensor = torch.FloatTensor(
-            next_state).reshape(1, -1).to(self._device)
+        while step < self._rollout_step or not done:
 
-        self._transition += [next_state_tensor, reward_tenosr, mask_tensor]
-        self._buffer.save(*self._transition)
+            state_tensor = torch.as_tensor(
+                state,
+                dtype=torch.float32,
+                device=self._device
+            )
 
-        return next_state, reward, done
+            action_tensor, dist = self.selectAction(
+                state_tensor
+            )
+            value = self._critic(state_tensor)
+            log_prob = dist.log_prob(action_tensor)
+            action = action_tensor.detach().cpu()
+
+            next_state, reward, done = self.step(action.numpy())
+
+            transition = [state_tensor,
+                          action_tensor,
+                          reward,
+                          1-done,
+                          value,
+                          log_prob]
+            traj.append(self.transToTensor(transition))
+
+            # update the vars
+            state = next_state
+            score += reward
+            step += 1
+            if done:
+                self._scores.append(score)
+
+                score = 0
+                state = self._env.reset()
+
+        self.trajToBuffer(traj)
+        self._curr_step += step
 
     def update(self):
-        """Update the network
+        """update the agent"""
+        with torch.no_grad():
+            # get samples
+            state = self._buffer[0]
+            action = self._buffer[1]
+            # reward = self._buffer[2]
+            # mask = self._buffer[3]
+            value = self._buffer[4]
+            log_prob = self._buffer[5]
 
-        :returns: TODO
+            # get returns
+            ret = self.getReturn()
 
-        """
-        # Get data
-        data = self._buffer.data()
-        states = data['states']
-        actions = data['actions']
-        rewards = data['rewards']
-        values = data['values'].detach()
-        next_states = data['next_states']
-        masks = data['masks']
-        log_probs = data['log_prob'].detach()
+            # get advantages
+            adv = ret - value
+            # adv = (adv - adv.mean()) / (adv.std() + 1e-5)
 
-        # for GAE
-        last_next_state = next_states[-1]
-        last_next_value = self._critic(last_next_state).reshape(1, -1)
+        n_sample = value.shape[0]  # type:ignore
+        assert n_sample >= self._batch_size
 
-        # compute gae
-        returns = gae(
-            last_next_value,
-            rewards,
-            masks,
-            values,
-            self._gamma,
-            self._lambda
+        updates_times = int(
+            1 + self._update_repeat_times * n_sample / self._batch_size
         )
-        returns = torch.cat(returns).reshape(-1, 1).detach()
-        advantages = returns - values
 
-        # optimize objective function wrt \theta with K epoch and batch_size M \lq NT
-        data_size = len(self._buffer)
-        batch_size = self._buffer.batchSize()
-        for _ in range(self._epoch):
-            for _ in range(data_size // batch_size):
-                index = np.random.choice(
-                    data_size, size=batch_size, replace=False)
-                state = states[index]
-                action = actions[index]
-                # value = values[index]
-                log_prob = log_probs[index]
-                ret = returns[index]
-                adv = advantages[index]
+        for _ in range(updates_times):
+            # sample the batch
+            indices = torch.randint(
+                n_sample,
+                size=(self._batch_size,),
+                requires_grad=False,
+                device=self._device
+            )
+            batch_state = state[indices]
+            batch_action = action[indices]
+            batch_return = ret[indices]
+            batch_adv = adv[indices].detach()
+            batch_log_prob = log_prob[indices]
 
-                # r = pi / pi_old
-                _, curr_dist = self._actor(state)
-                curr_log_prob = curr_dist.log_prob(action)
-                r = (curr_log_prob - log_prob).exp()
+            # compute r = pi / pi_old
+            _, curr_dist = self._actor(batch_state)
+            curr_log_prob = curr_dist.log_prob(batch_action)
+            r = (curr_log_prob - batch_log_prob.detach()).exp()
 
-                # compute surrogate objective
-                surr = r * adv
-                clipped_surr = torch.clamp(
-                    r, 1.0-self._epsilon, 1.0+self._epsilon
-                ) * adv
+            # compute surrogate objective
+            surr = r * batch_adv
+            clip_surr = torch.clamp(r, 1.0-self._clip_eps, 1.0+self._clip_eps)
 
-                # add entropy
-                entropy = curr_dist.entropy().mean()
-                actor_loss = (
-                    -torch.min(surr, clipped_surr).mean()
-                    - entropy * self._entropy_weight
-                )
+            # compute entropy
+            entropy = curr_dist.entropy().mean()
 
-                # compute critic loss
-                value = self._critic(state)
-                critic_loss = F.mse_loss(ret, value)
+            # compute actor_loss
+            actor_loss = (
+                torch.min(surr, clip_surr).mean()
+                - entropy * self._entropy_weight
+            )
 
-                # apply update
-                self.applyUpdate(self._critic_optimizer, critic_loss)
-                self.applyUpdate(self._actor_optimizer, actor_loss)
+            # compute critic_loss
+            curr_value = self._critic(batch_state)
+            critic_loss = self._loss_func(curr_value, batch_return)
 
-        self._buffer.clear()
+            # applyUpdate
+            self.applyUpdate(self._actor_optimizer, -actor_loss)
+            self.applyUpdate(self._critic_optimizer, critic_loss)
 
-    def train(self, n_step: int):
-        """Train the agent
-)
-        :arg1: TODO
-        :returns: TODO
+    def train(self):
+        """Train the agent"""
 
-        """
-        while self._curr_step <= n_step:
-            self.exploreEnv(self._T_step)
-            print(f"Current step: {self._curr_step} Last 100 exploration Mean score:{np.array(self._scores[-100:]).mean()}")
+        # init
+        self._scores = []
+        self._actor_losses = []
+        self._critic_losses = []
+        print_count = 0
 
+        while self._curr_step < self._max_train_step:
+            self.exploreEnv()
             self.update()
+            print_count += 1
+            if print_count % 2 == 0:
+                print(
+                    f"Current step: {self._curr_step} Last 100 exploration mean score: {torch.tensor(self._scores[-100:]).mean()}"
+                )
 
         self._env.close()
 
@@ -192,20 +223,28 @@ class PPOagent(BaseAgent):
 if __name__ == '__main__':
 
     env = gym.make("Pendulum-v1")
-    act_dim = env.action_space.shape[0]
-    obs_dim = env.observation_space.shape[0]
-
     env = ActionNormalizer(env)
-    actor = ActorSto(obs_dim, act_dim)
-    critic = CriticV(obs_dim)
-    buffer = BufferPPO()
-    agent = PPOagent(
-        env,
-        actor,
-        critic,
-        buffer
-    )
 
-    n_step = 100000
+    config = Configurator(env)
+    config.max_train_step = 100000
+    config.rollout_step = 2000
+    config.update_repeat_times = 32
+    config.buffer_batch_size = 256
+    agent = PPO(config)
+    agent.train()
 
-    agent.train(n_step)
+    # act_dim = env.action_space.shape[0]
+    # obs_dim = env.observation_space.shape[0]
+    # actor = ActorSto(obs_dim, act_dim)
+    # critic = CriticV(obs_dim)
+    # buffer = BufferPPO()
+    # agent = PPOagent(
+    # env,
+    # actor,
+    # critic,
+    # buffer
+    # )
+
+    # n_step = 100000
+
+    # agent.train(n_step)

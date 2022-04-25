@@ -1,9 +1,10 @@
-from copy import deepcopy
 
 from tinyRL.util.replay_buffer import ReplayBufferDev
 from tinyRL.util.net import ActorDet, CriticQ
 
 import numpy as np
+from copy import deepcopy
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -41,6 +42,7 @@ class BaseAgent():
 
         self._gamma = getattr(config, "gamma")
         self._tau = getattr(config, "tau_soft_update")
+        self._entropy_weight = getattr(config, "entropy_weight")
         self._actor_lr = getattr(config, "actor_learning_rate")
         self._critic_lr = getattr(config, "critic_learning_rate")
 
@@ -104,11 +106,7 @@ class BaseAgent():
         return next_state, reward, done
 
     def exploreEnv(self):
-        """explore the env, save the trajectory to buffer
-
-        :max_step: The maximum steps taking on env
-
-        """
+        """explore the env, save the trajectory to buffer"""
 
         step = 0
         score = 0

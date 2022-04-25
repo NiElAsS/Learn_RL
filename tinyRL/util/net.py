@@ -89,7 +89,7 @@ class ActorSto(nn.Module):
 
         # compute the mu and std for Normal distribution
         self._mu = nn.Linear(32, output_dim)
-        self._std = nn.Linear(32, output_dim)
+        self._log_std = nn.Linear(32, output_dim)
 
     def forward(self, state: torch.Tensor) -> tuple:
         """Forward calculation"""
@@ -98,8 +98,8 @@ class ActorSto(nn.Module):
         # map action mean to (-1, 1)
         mu = torch.tanh(self._mu(x))
 
-        # map action std to (0,max_std)
-        log_std = torch.tanh(self._std(x))
+        # compute std
+        log_std = torch.tanh(self._log_std(x))
         std = log_std.exp()
 
         # build the distribution and sample the action
