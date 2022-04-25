@@ -1,4 +1,3 @@
-import gym
 from gym.spaces.discrete import Discrete
 
 
@@ -15,7 +14,7 @@ class Configurator():
         )
         self.state_dim = env.observation_space.shape[0]
         if self.discrete_action:
-            self.action_dim = env.action_space.n
+            self.action_dim = 1
         else:
             self.action_dim = env.action_space.shape[0]
 
@@ -29,9 +28,9 @@ class Configurator():
         self.critic_learning_rate = 1e-3  # critic_learning_rate
 
         """for epsilon-greedy"""
-        self.epsilon_greedy_rate = 0.25
         self.max_epsilon_greedy_rate = 1.0
-        self.min_epsilon_greedy_rate = 0.05
+        self.min_epsilon_greedy_rate = 0.1
+        self.epsilon_greedy_rate_decay = 10000
 
         """for GAE"""
         self.gae_lambda = 0.02

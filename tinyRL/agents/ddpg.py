@@ -49,7 +49,7 @@ class DDPG(BaseAgent):
 
             # compute loss for critic
             q = self._critic(state, action)
-            critic_loss = self.loss_func(y, q)
+            critic_loss = self._loss_func(y, q)
             self.applyUpdate(self._critic_optimizer, critic_loss)
 
             # compute loss for actor

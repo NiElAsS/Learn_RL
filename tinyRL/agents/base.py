@@ -69,7 +69,7 @@ class BaseAgent():
         )
 
         # loss func
-        self.loss_func = nn.SmoothL1Loss()
+        self._loss_func = nn.SmoothL1Loss()
 
         # data recorder
         self._scores = list()
@@ -116,7 +116,7 @@ class BaseAgent():
         state = self._env.reset()
         done = False
 
-        while step < self._rollout_step and not done:
+        while step < self._rollout_step or not done:
             state_tensor = torch.as_tensor(
                 state, dtype=torch.float32
             )
