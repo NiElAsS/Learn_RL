@@ -1,3 +1,6 @@
+import gym
+from gym.spaces.discrete import Discrete
+
 
 class Configurator():
 
@@ -7,9 +10,14 @@ class Configurator():
         """Init all parameters """
 
         self.env = env
+        self.discrete_action = isinstance(
+            env.action_space, Discrete
+        )
         self.state_dim = env.observation_space.shape[0]
-        # gym continuous env # TODO
-        self.action_dim = env.action_space.shape[0]
+        if self.discrete_action:
+            self.action_dim = env.action_space.n
+        else:
+            self.action_dim = env.action_space.shape[0]
 
         """for training"""
         self.gamma = 0.99  # discount factor
