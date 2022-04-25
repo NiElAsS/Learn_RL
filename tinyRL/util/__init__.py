@@ -1,3 +1,4 @@
+from tinyRL.util.configurator import Configurator
 from tinyRL.util.replay_buffer import BufferPPO,ReplayBuffer,ReplayBufferDev
 from tinyRL.util.net import DQNnet
 from tinyRL.util.net import ActorDet, ActorSto
