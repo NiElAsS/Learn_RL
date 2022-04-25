@@ -63,7 +63,6 @@ class PPO(BaseAgent):
 
     def trajToBuffer(self, traj):
         """save the trajectory into buffer(List)"""
-        self._buffer = self._buffer.clear()
         self._buffer = list(map(list, zip(*traj)))
         state, action, reward, mask, value, log_prob = [
             torch.cat(i, dim=0).to(self._device) for i in self._buffer
@@ -82,7 +81,7 @@ class PPO(BaseAgent):
         )
         tmp = 0
         for i in reversed(range(0, n_sample)):
-            ret[i] = reward[i] + mask[i] * tmp
+            ret[i] = reward[i] + mask[i] * tmp * self._gamma
             tmp = ret[i]
 
         return ret
@@ -228,8 +227,9 @@ if __name__ == '__main__':
     config = Configurator(env)
     config.max_train_step = 100000
     config.rollout_step = 2000
-    config.update_repeat_times = 32
+    config.update_repeat_times = 64
     config.buffer_batch_size = 256
+    config.gamma = 0.9
     agent = PPO(config)
     agent.train()
 
