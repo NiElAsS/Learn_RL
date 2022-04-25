@@ -14,7 +14,7 @@ class DQN(BaseAgent):
     def __init__(self, config):
         """Init the agent
 
-        :config: TODO
+        :config: Configurator for initialization
 
         """
         super().__init__(config)

@@ -1,5 +1,4 @@
-
-from tinyRL.util.replay_buffer import ReplayBufferDev
+from tinyRL.util.replay_buffer import ReplayBuffer
 from tinyRL.util.net import ActorDet, CriticQ
 
 import numpy as np
@@ -33,7 +32,7 @@ class BaseAgent():
         # buffer
         self._max_buffer_size = getattr(config, "max_buffer_size")
         self._batch_size = getattr(config, "buffer_batch_size")
-        self._buffer = ReplayBufferDev(
+        self._buffer = ReplayBuffer(
             self._state_dim,
             self._action_dim,
             self._batch_size,

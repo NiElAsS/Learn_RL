@@ -50,9 +50,9 @@ class ActorDet(nn.Module):
         self._fully_conn_layer = nn.Sequential(
             nn.Linear(input_dim, 128),
             nn.ReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(64, output_dim)
+            nn.Linear(128, output_dim)
         )
 
     def forward(self, state: torch.Tensor):
@@ -81,15 +81,15 @@ class ActorSto(nn.Module):
         self._fully_conn_layer = nn.Sequential(
             nn.Linear(input_dim, 128),
             nn.ReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(128, 64),
             nn.ReLU()
         )
 
         # compute the mu and std for Normal distribution
-        self._mu = nn.Linear(32, output_dim)
-        self._log_std = nn.Linear(32, output_dim)
+        self._mu = nn.Linear(64, output_dim)
+        self._log_std = nn.Linear(64, output_dim)
 
     def forward(self, state: torch.Tensor) -> tuple:
         """Forward calculation"""

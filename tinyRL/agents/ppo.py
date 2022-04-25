@@ -248,7 +248,7 @@ if __name__ == '__main__':
     config = Configurator(env)
     config.max_train_step = 100000
     config.rollout_step = 2000
-    config.update_repeat_times = 64
+    config.update_repeat_times = 16
     config.buffer_batch_size = 128
     config.gamma = 0.9
     config.gae_lambda = 0.8
