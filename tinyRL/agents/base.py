@@ -128,7 +128,7 @@ class BaseAgent():
             next_state, reward, done = self.step(action_tensor.numpy())
 
             transition = [state_tensor, action_tensor,
-                          next_state, reward, 1-done]
+                          reward, 1-done]
             traj.append(self.transToTensor(transition))
 
             # update the vars

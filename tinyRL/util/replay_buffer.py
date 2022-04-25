@@ -147,14 +147,9 @@ class ReplayBufferDev():
             (self._max_buffer_size, self._state_dim),
             dtype=torch.float32,
             device=self._device
-        )
+        ) # use state_buffer both for state and next_state(see sampleBatch)
         self._action_buffer = torch.zeros(
             (self._max_buffer_size, self._action_dim),
-            dtype=torch.float32,
-            device=self._device
-        )
-        self._next_state_buffer = torch.zeros(
-            (self._max_buffer_size, self._state_dim),
             dtype=torch.float32,
             device=self._device
         )
@@ -185,7 +180,7 @@ class ReplayBufferDev():
         traj = list(map(list, zip(*trajectory)))
 
         """convert list to torch.Tensor"""
-        state, action, next_state, reward, mask = [
+        state, action, reward, mask = [
             torch.cat(i, dim=0) for i in traj
         ]
         traj_size = reward.shape[0]
@@ -200,9 +195,6 @@ class ReplayBufferDev():
             self._action_buffer[self._ptr:self._max_buffer_size] = (
                 action[:self._max_buffer_size - self._ptr]
             )
-            self._next_state_buffer[self._ptr:self._max_buffer_size] = (
-                next_state[:self._max_buffer_size - self._ptr]
-            )
             self._reward_buffer[self._ptr:self._max_buffer_size] = (
                 reward[:self._max_buffer_size - self._ptr]
             )
@@ -214,14 +206,12 @@ class ReplayBufferDev():
             require_size = require_size - self._max_buffer_size
             self._state_buffer[0:require_size] = state[-require_size:]
             self._action_buffer[0:require_size] = action[-require_size:]
-            self._next_state_buffer[0:require_size] = next_state[-require_size:]
             self._reward_buffer[0:require_size] = reward[-require_size:]
             self._mask_buffer[0:require_size] = mask[-require_size:]
         else:
             """we have enough space"""
             self._state_buffer[self._ptr:require_size] = state
             self._action_buffer[self._ptr:require_size] = action
-            self._next_state_buffer[self._ptr:require_size] = next_state
             self._reward_buffer[self._ptr:require_size] = reward
             self._mask_buffer[self._ptr:require_size] = mask
 
@@ -238,7 +228,6 @@ class ReplayBufferDev():
         """
         self._state_buffer[self._ptr] = transition[0]
         self._action_buffer[self._ptr] = transition[1]
-        self._next_state_buffer[self._ptr] = transition[2]
         self._reward_buffer[self._ptr] = transition[3]
         self._mask_buffer[self._ptr] = transition[4]
 
@@ -253,14 +242,14 @@ class ReplayBufferDev():
         """
 
         indices = torch.randint(
-            self._curr_size,
+            self._curr_size - 1,  # -1 bcs (indices + 1) is needed below
             size=(self._batch_size,),
             device=self._device
         )
         return (
             self._state_buffer[indices],
             self._action_buffer[indices],
-            self._next_state_buffer[indices],
+            self._state_buffer[indices + 1],
             self._reward_buffer[indices],
             self._mask_buffer[indices]
         )
