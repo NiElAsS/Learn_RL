@@ -7,11 +7,7 @@ class ActionNormalizer(gym.ActionWrapper):
     """Normalize the range of actions"""
 
     def action(self, action: np.ndarray):
-        """Rescale the range [-1, 1] to [low, high]
-
-        :action: TODO
-
-        """
+        """Rescale the range [-1, 1] to [low, high]"""
 
         self._action = action
         low = self.action_space.low

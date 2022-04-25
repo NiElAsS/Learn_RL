@@ -22,7 +22,7 @@ class Configurator():
         self.gamma = 0.99  # discount factor
         self.max_train_step = 5e4  # maximum training step
         self.tau_soft_update = 1e-3  # target network soft update factor
-        self.entropy_weight = 0.02 # Entropy weight for exploration
+        self.entropy_weight = 0.005 # Entropy weight for exploration
         self.rollout_step = 200  # maximum steps of each exploration
         self.update_repeat_times = 1  # number of going through all samples
         self.actor_learning_rate = 1e-4  # actor_learning_rate

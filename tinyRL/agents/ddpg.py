@@ -1,5 +1,4 @@
 import gym
-import matplotlib.pyplot as plt
 import torch
 from tinyRL.util import ActionNormalizer
 from tinyRL.util.configurator import Configurator
